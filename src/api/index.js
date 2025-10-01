@@ -10,3 +10,6 @@ export const getCreateOrderPageDataAPI = ()=> request.get('/h5/companion')
 
 //提交订单接口
 export const submitCreateOrderAPI = (data)=> request.post('/createOrder',data)
+
+//订单页面获取订单列表
+export const getOrderPageListAPI = (params)=> request.get('/order/list',{params})
