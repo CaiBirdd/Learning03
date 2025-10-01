@@ -1,8 +1,10 @@
 <script setup>
 import { useRouter } from 'vue-router'
 import orderStatusBar from '@/components/orderStatusBar.vue'
-import { getCreateOrderPageDataAPI } from '@/api'
+import { getCreateOrderPageDataAPI,submitCreateOrderAPI } from '@/api'
 import { computed, onMounted, ref } from 'vue'
+import { showNotify } from 'vant'
+import QRCode from 'qrcode'
 const router = useRouter()
 
 //创建订单页的数据
@@ -19,12 +21,14 @@ onMounted(async ()=>{
 const form = ref({
   hospital_id: '',
   hospital_name: '',
-  deman: '',
+  demand: '',
   companion_id: 0,
   receiveAddress: '',
   tel: '',
   starttime: 0
 })
+
+
 //弹窗选择医院
 const showHospital = ref(false)
 //医院下拉菜单数据处理 格式按照vant要求 使用计算属性处理一下
@@ -61,6 +65,68 @@ const dateOnConfirm = (item)=>{
   //关闭选择时间的弹出层
   showDate.value = false
 }
+
+//陪诊师弹窗
+const showCompanion =  ref(false)
+//选择的陪诊师
+const selectCompanion = ref()
+//陪诊师弹窗数据 同之前 需要处理成vant要求的格式
+const companionColumns = computed(()=> {
+  return createOrderPageData.value.companion.map((item)=>{
+    return { text: item.name, value:item.id }
+  })
+})
+//陪诊师弹窗确认操作
+const companionOnConfirm = (item)=>{
+  console.log(item,'选择陪诊师返回的数据')
+  //selectedValues和selectedOptions是vant返回的属性值
+  form.value.companion_id = item.selectedValues[0]
+  selectCompanion.value = item.selectedOptions[0].text
+  //关闭选择医院的弹出层
+  showCompanion.value = false
+}
+
+//点击提交按钮 进行表单校验
+
+const sumbit = async ()=>{
+  const valForm = [
+    'companion_id',
+    'demand', 
+    'hospital_id',
+    'hospital_name',
+    'receiveAddress',
+    'starttime',
+    'tel',
+  ]
+  // 检查是否所有字段都已填写 (allFilled 为 true 表示所有都已填写) form.value[item]相当于用键名取键值
+  const allFilled = valForm.every((item)=> form.value[item])
+  if(!allFilled){
+    // 如果不是所有字段都填写了
+    showNotify({ type: 'warning',message: '请把每一项都填写!' })
+    return
+  }
+  const res = await submitCreateOrderAPI(form.value)
+  console.log(res,'提交订单信息')
+  if(res.data.code === 10000){
+    showNotify({ type: 'success', message: '订单创建成功！'})
+  }
+  //将 支付链接字符串 转化成 可供网页显示的二维码图片源（src）
+  url.value = await QRCode.toDataURL(res.data.data.wx_code)
+  console.log(url.value,'转换好的二维码src')
+  //弹出二维码支付框
+  showCode.value = true
+}
+//这块儿扫码成功之后后端没有给数据 所以这块儿逻辑写不了
+//支付二维码弹窗
+const showCode = ref(false)
+//二维码数据
+const url = ref()
+//关闭支付二维码弹窗
+const closeCode = () => {
+  showCode.value = false
+  router.push('/order')
+}
+
 </script>
 
 <template>
@@ -119,8 +185,47 @@ const dateOnConfirm = (item)=>{
           </div>
         </template>
       </van-cell>
+      <!-- 选择陪诊师 -->
+      <van-cell>
+        <template #title>陪诊师</template>
+        <template #default>
+          <div @click="showCompanion = true">
+            {{  selectCompanion || "请选择陪诊师" }}
+            <van-icon name="arrow" />
+          </div>
+        </template>
+      </van-cell>
+      <!-- 输入地址 -->
+      <van-cell >
+        <template #title>接送地址</template>
+        <template #default>
+          <van-field v-model="form.receiveAddress"  input-align="right" placeholder="请输入接送地址" />
+        </template>
+      </van-cell>
+      <!-- 输入联系电话 -->
+      <van-cell >
+        <template #title>联系电话</template>
+        <template #default>
+          <van-field v-model="form.tel"  input-align="right" placeholder="请输入联系电话" />
+        </template>
+      </van-cell>
     </van-cell-group>
-    <!-- 选择医院弹出层 -->
+
+    <!-- 服务需求部分 备注 -->
+    <van-cell-group title="服务需求" class="cell">
+      <van-field
+        style="height: 100px"
+        v-model="form.demand"
+        placeholder="请简单描述您要就诊的科室..."
+      />
+    </van-cell-group>
+
+    <!-- 底部按钮 -->
+    <van-button @click="sumbit" class="sumbit" type="primary" size="large">提交订单</van-button>
+    
+    
+    <!-- 以下是弹出层部分的内容 -->
+    <!-- 选择医院弹出层 弹出层包选择器-->
     <van-popup v-model:show="showHospital"  position="bottom">
       <van-picker
         title="请选择医院"
@@ -138,6 +243,23 @@ const dateOnConfirm = (item)=>{
         @cancel="showDate = false"
       />
     </van-popup>
+    <!-- 选择陪诊师弹出层 弹出层包选择器-->
+    <van-popup v-model:show="showCompanion"  position="bottom">
+      <van-picker
+        title="请选择陪诊师"
+        :columns="companionColumns"
+        @confirm="companionOnConfirm"
+        @cancel="showCompanion = false"
+      />
+    </van-popup>
+
+    <!-- 二维码支付弹窗 :show-confirm-button="false"是不展示确认按钮-->
+    <van-dialog :show-confirm-button="false" v-model:show="showCode">
+      <van-icon name="cross" @click="closeCode" class="close" />
+      <div>微信支付</div>
+      <van-image height="150" width="150" :src="url" />
+      <div>请使用本人微信扫描二维码</div>
+    </van-dialog>
 
   </div>
 </template>
@@ -145,7 +267,9 @@ const dateOnConfirm = (item)=>{
 <style lang="less" scoped>
 .container {
   background-color: #f0f0f0;
-  height: 100vh;
+  min-height: 100vh; /* 改为最小高度，确保内容少时也能撑开 */
+  /* 为固定底部的按钮留出空间（约 50px-70px） */
+  padding-bottom: 70px; 
 }
 .header {
   padding: 10px 0;
@@ -159,7 +283,7 @@ const dateOnConfirm = (item)=>{
 
 .cell {
   align-items: center;
-  width: 98%;
+  width: 97%;
   margin: 5px auto;
   background-color: #fff;
   border-radius: 2%;
@@ -172,10 +296,16 @@ const dateOnConfirm = (item)=>{
     no-repeat center center;
   background-size: 20px;
 }
+/* 确保按钮固定在视口底部并占满宽度 */
 .sumbit {
-  position: absolute;
+  position: fixed; /* 改为 fixed，固定在屏幕底部 */
   bottom: 0;
+  left: 0; 
+  width: 100%; 
+  z-index: 99; /* 确保它在其他元素之上 */
+  border-radius: 0;
 }
+
 ::v-deep(.van-dialog__content) {
   text-align: center;
   padding: 20px;
