@@ -5,7 +5,7 @@
 <script setup>
 import { ref, onMounted, defineProps, defineEmits} from 'vue'
 const props = defineProps({
-  second: {
+  millisecond: {   //这里接收的是毫秒
     type: Number,
     default: 0,
   },
@@ -27,7 +27,7 @@ const emit = defineEmits(['counterOver'])
 const formater = ref('')
   
 onMounted(() => {
-  formater.value = TIME_FORMAT(props.second)
+  formater.value = TIME_FORMAT(props.millisecond)
 })
 // 倒计时逻辑处理
 const TIME_FORMAT = (ts) => {

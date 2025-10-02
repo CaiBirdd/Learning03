@@ -13,3 +13,6 @@ export const submitCreateOrderAPI = (data)=> request.post('/createOrder',data)
 
 //订单页面获取订单列表
 export const getOrderPageListAPI = (params)=> request.get('/order/list',{params})
+
+//订单详情页
+export const getOrderDetailPageAPI = (params)=> request.get('/order/detail',{params})

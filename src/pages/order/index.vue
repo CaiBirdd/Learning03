@@ -7,6 +7,7 @@ const route = useRoute()
 const router = useRouter()
 
 //顶部tab栏激活状态和选择刷新操作
+// 注意：van-tabs 的 name 属性是字符串，所以 active 应该初始化为字符串
 const active = ref('')
 const SelectTab = (item)=>{
   //@click-tab时间会将当前点击的tab参数传过来
@@ -15,8 +16,8 @@ const SelectTab = (item)=>{
 }
 //订单页面数据
 const orderPageData = ref()
-//注意这里后端接口要求传入的是state
-const getOrderPageList = async (state)=>{
+//注意这里后端接口要求传入的是state 增加默认参数，防止第一次加载时 state 为 undefined
+const getOrderPageList = async (state = '')=>{
   const res  = await getOrderPageListAPI({state})
   orderPageData.value = res.data.data
   console.log(orderPageData.value,'当前点击类型的订单列表数据')
@@ -25,13 +26,27 @@ const getOrderPageList = async (state)=>{
     item.countdown  = item.order_start_time + 7200000 - Date.now()
   })
 }
+//这里对进入页面默认获取数据渲染列表做了小更改
+//因为 我的页面 点击跳转过来会在url上带参数 所以做一下小判定 
+//如果路由没带参数，就执行默认的拿整页数据，如果带参数了，根据带的参数传入激活和渲染
 onMounted(()=>{
+  // 1. 获取 URL 中的 active 查询参数
+  const initialActive = route.query.active
+  // 2. 如果参数存在，则赋值给 active
+  if (initialActive) {
+    // 确保 active 是字符串，因为 van-tab 的 name 属性是字符串 ('1', '2', '3', '4')
+    active.value = String(initialActive) 
+  } else {
+    // 如果没有 active 参数，默认激活 '全部' (name='')
+    active.value = ''
+  }
+  // 3. 根据激活的 active 值加载对应的数据
+  getOrderPageList(active.value)
   //进入页面获取数据
-  getOrderPageList()
 })
 //跳转订单详情页
-const goDetailPage = ()=>{
-
+const goDetailPage = (item)=>{
+  router.push(`/detail?oid=${item.out_trade_no}`)
 }
 //根据不同状态显示不同颜色字样
 const statusColor = ref({
@@ -46,7 +61,7 @@ const statusColor = ref({
   <div class="container">   
     <!-- 顶部 -->
     <van-nav-bar
-      title="订单详情"
+      title="我的订单"
       left-arrow
       @click-left="router.go(-1)"
     />
@@ -74,7 +89,7 @@ const statusColor = ref({
       <!-- 这里还是用的对象的键名和键值进行字体颜色匹配 倒计时直接用一个组件处理了传入剩余时间 在待支付时才显示-->
       <van-col span="5" class="text2" :style="{color:statusColor[item.trade_state]}">
         {{ item.trade_state }}
-        <counter :second="item.countdown" v-if="item.trade_state === '待支付'"></counter>
+        <counter :millisecond="item.countdown" v-if="item.trade_state === '待支付'"></counter>
       </van-col>
     </van-row>
     <div class="bottom-text">没有更多了</div>
