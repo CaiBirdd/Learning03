@@ -145,7 +145,7 @@ const goCreateOrder = (item)=>{
   }
 }
 .bottom-text {
-  line-height: 50px;
+  line-height: 70px;
   text-align: center;
   color: #999999;
 }

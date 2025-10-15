@@ -91,7 +91,8 @@ const logOut =  ()=>{
     <van-share-sheet 
       v-model:show="showShare" 
       title="转发分享" 
-      :options="options" />
+      :options="options" 
+    />
 
     <!-- vant自定义dialog退出操作 -->
     <van-button type="danger" @click="showQuit= true" class="quit" size="large">退出登录</van-button>
